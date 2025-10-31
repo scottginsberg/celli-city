@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Lobby &amp; Hallway Demo</title>
+    <style>
+      :root {
+        color-scheme: dark light;
+        font-family: "Segoe UI", Roboto, sans-serif;
+        background: radial-gradient(circle at top, #1b2735, #090a0f);
+        color: #f3f6fb;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: minmax(280px, 360px) 1fr;
+        gap: 1.5rem;
+        padding: 2rem;
+        box-sizing: border-box;
+      }
+
+      header {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+      }
+
+      #city {
+        position: relative;
+        min-height: 420px;
+        border-radius: 16px;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(52, 84, 209, 0.75), rgba(27, 39, 53, 0.65));
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 2rem;
+      }
+
+      #city::before,
+      #city::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.25), transparent 55%),
+          radial-gradient(circle at 80% 20%, rgba(255, 210, 120, 0.18), transparent 50%);
+        opacity: 0.5;
+        transition: opacity 0.4s ease;
+        pointer-events: none;
+      }
+
+      #city.active::before {
+        opacity: 0.75;
+      }
+
+      .tower {
+        width: 72px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(102, 153, 204, 0.15));
+        border-radius: 12px 12px 4px 4px;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
+        position: relative;
+        margin: 0 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+
+      .tower::after {
+        content: "";
+        display: block;
+        height: 12px;
+        border-radius: 0 0 4px 4px;
+        background: rgba(15, 23, 42, 0.85);
+      }
+
+      .tower[data-name="central"] {
+        width: 140px;
+        border-radius: 16px 16px 8px 8px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(69, 128, 255, 0.2));
+      }
+
+      #controls {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.65);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+      }
+
+      #controls button {
+        appearance: none;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        background: rgba(59, 130, 246, 0.85);
+        color: white;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.12s ease, background 0.2s ease;
+      }
+
+      #controls button:hover {
+        transform: translateY(-1px);
+        background: rgba(59, 130, 246, 0.95);
+      }
+
+      #controls button:active {
+        transform: translateY(1px) scale(0.99);
+      }
+
+      #log {
+        padding: 1rem;
+        border-radius: 12px;
+        background: rgba(12, 15, 24, 0.7);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        overflow: auto;
+        max-height: 480px;
+        font-family: "Fira Code", "SFMono-Regular", monospace;
+        font-size: 0.85rem;
+        display: flex;
+        flex-direction: column-reverse;
+      }
+
+      #log div {
+        padding: 0.35rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .input-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .input-group input {
+        flex: 1;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 0.5rem 0.75rem;
+        background: rgba(15, 23, 42, 0.85);
+        color: inherit;
+      }
+
+      footer {
+        grid-column: 1 / -1;
+        opacity: 0.65;
+        font-size: 0.8rem;
+        text-align: center;
+      }
+
+      @media (max-width: 900px) {
+        body {
+          grid-template-columns: 1fr;
+        }
+        #city {
+          min-height: 320px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Lobby &amp; Hallway Streaming Demo</h1>
+      <div class="input-group">
+        <label for="floor-input">Target floor</label>
+        <input id="floor-input" type="number" value="5" min="1" max="120" />
+      </div>
+    </header>
+    <section id="controls">
+      <button id="enter-lobby">Enter Tower One Lobby</button>
+      <button id="stream-geometry">Stream Hallway Geometry</button>
+      <button id="to-hallway">Step Into Hallway</button>
+      <button id="to-lobby">Return To Lobby</button>
+      <button id="exit-lobby">Exit Lobby To Street</button>
+      <button id="call-elevator">Call Elevator</button>
+    </section>
+    <section id="city">
+      <div class="tower" data-name="west" style="height: 220px"></div>
+      <div class="tower" data-name="central" style="height: 340px"></div>
+      <div class="tower" data-name="east" style="height: 260px"></div>
+    </section>
+    <section id="log"></section>
+    <footer>Inspect the console to view dispatch details and payloads.</footer>
+
+    <script type="module">
+      import { LobbyManager } from "../src/systems/lobby/LobbyManager.js";
+      import { HallwayManager } from "../src/systems/hallway/HallwayManager.js";
+
+      const logRoot = document.querySelector("#log");
+      function log(message) {
+        const time = new Date().toLocaleTimeString();
+        const entry = document.createElement("div");
+        entry.textContent = `[${time}] ${message}`;
+        logRoot.prepend(entry);
+        console.log(message);
+      }
+
+      const sharedEvents = new EventTarget();
+
+      const lobbyManager = new LobbyManager({
+        eventTarget: sharedEvents,
+        sceneFactory(descriptor) {
+          const base = descriptor.procedural ?? {};
+          return {
+            id: descriptor.id,
+            name: descriptor.name,
+            lighting: {
+              intensity: 0.82,
+              color: base.lightingColor ?? "#ffe0c2",
+            },
+            atriumHeight: base.atriumHeight ?? 18,
+            artInstallations: base.artInstallations ?? ["kinetic sculpture"],
+            surfaces: {
+              floor: base.floorMaterial ?? "riverstone terrazzo",
+              walls: base.wallMaterial ?? "satin brass",
+            },
+          };
+        },
+      });
+
+      lobbyManager.registerDescriptor("tower-one", {
+        name: "Tower One Grand Lobby",
+        doors: [
+          { id: "tower-one-main", label: "Main Canopy Entrance", leadsTo: "hallway-a" },
+          { id: "tower-one-service", label: "Service Entry", leadsTo: "hallway-a" },
+        ],
+        procedural: {
+          seed: "tower-one",
+          atriumHeight: 22,
+          lightingColor: "#ffd6a3",
+          artInstallations: ["suspended glass orbs", "interactive water wall"],
+          floorMaterial: "pearl terrazzo",
+          wallMaterial: "champagne anodized aluminum",
+          features: ["biometric turnstiles", "living wall"],
+        },
+      });
+
+      const hallwayManager = new HallwayManager({
+        eventTarget: sharedEvents,
+        geometryStreamer({ hallwayId, sections }) {
+          const timestamp = Date.now();
+          return sections.map((section, index) => ({
+            id: `${hallwayId}-${section.id ?? index}`,
+            detail: section.detail ?? "structural-core",
+            streamedAt: timestamp,
+          }));
+        },
+      });
+
+      hallwayManager.registerHallway("hallway-a", {
+        travelTimePerFloor: 1.35,
+        doors: [
+          {
+            id: "tower-one-main",
+            label: "Grand Lobby Portal",
+            connectedLobbyId: "tower-one",
+          },
+          {
+            id: "tower-one-service",
+            label: "Service Corridor",
+            connectedLobbyId: "tower-one",
+          },
+        ],
+        elevators: [
+          { id: "a-east", name: "East Core", currentFloor: 3 },
+          { id: "a-west", name: "West Core", currentFloor: 12 },
+        ],
+        sections: [
+          { id: "core", detail: "support structure" },
+          { id: "lighting", detail: "dynamic lighting rig" },
+          { id: "detailing", detail: "display niches" },
+        ],
+      });
+
+      function attachLogging(eventName, formatter) {
+        sharedEvents.addEventListener(eventName, (event) => {
+          const detail = event.detail ?? {};
+          const message = formatter ? formatter(detail) : `${eventName}`;
+          log(`${eventName}: ${message}`);
+        });
+      }
+
+      attachLogging("lobby:loaded", (d) => `${d.lobbyId} scene ready.`);
+      attachLogging("lobby:unloaded", (d) => `${d.lobbyId} scene cleaned.`);
+      attachLogging("lobby:entered", (d) => `entered ${d.lobbyId} via ${d.doorId}.`);
+      attachLogging("lobby:exited", (d) => `exited ${d.lobbyId ?? "unknown"}.`);
+      attachLogging("lobby:to-hallway", (d) => `transitioning to hallway from ${d.lobbyId}.`);
+      attachLogging("lobby:from-hallway", (d) => `returned to lobby ${d.lobbyId}.`);
+      attachLogging("hallway:geometry-streamed", (d) => `${d.sections.length} sections streamed for ${d.hallwayId}.`);
+      attachLogging("hallway:geometry-unloaded", (d) => `${d.sections.length} sections unloaded for ${d.hallwayId}.`);
+      attachLogging("hallway:elevator-routed", (d) => `${d.elevator.name} routed to floor ${d.targetFloor}.`);
+      attachLogging("hallway:entered", (d) => `entered ${d.hallwayId} through ${d.door.id}.`);
+      attachLogging("hallway:exited", (d) => `left ${d.hallwayId}.`);
+
+      function requireLobby() {
+        if (lobbyManager.getCurrentState() === "exterior") {
+          log("Enter the lobby first.");
+          return false;
+        }
+        return true;
+      }
+
+      document.querySelector("#enter-lobby").addEventListener("click", () => {
+        lobbyManager.handleDoorInteraction({
+          lobbyId: "tower-one",
+          doorId: "tower-one-main",
+          action: "enter",
+        });
+      });
+
+      document.querySelector("#stream-geometry").addEventListener("click", () => {
+        hallwayManager.loadMinimalGeometry("hallway-a");
+      });
+
+      document.querySelector("#to-hallway").addEventListener("click", () => {
+        if (!requireLobby()) return;
+        const descriptor = lobbyManager.getActiveLobbyDescriptor();
+        lobbyManager.enterHallway("tower-one-main");
+        hallwayManager.enterFromLobby(descriptor, "tower-one-main");
+      });
+
+      document.querySelector("#to-lobby").addEventListener("click", () => {
+        if (hallwayManager.getActiveHallwayId()) {
+          hallwayManager.exitToLobby();
+          lobbyManager.returnToLobby("tower-one-main");
+        } else {
+          log("No hallway active.");
+        }
+      });
+
+      document.querySelector("#exit-lobby").addEventListener("click", () => {
+        if (lobbyManager.getCurrentState() === "exterior") {
+          log("Already outside.");
+          return;
+        }
+        lobbyManager.handleDoorInteraction({
+          lobbyId: lobbyManager.getCurrentLobbyId(),
+          doorId: lobbyManager.getActiveDoorId() ?? "tower-one-main",
+          action: "exit",
+        });
+      });
+
+      document.querySelector("#call-elevator").addEventListener("click", () => {
+        const target = Number(document.querySelector("#floor-input").value) || 5;
+        const { elevator, eta } = hallwayManager.routeElevator("hallway-a", target);
+        log(`Elevator ${elevator.name} dispatched. Estimated arrival ${eta.toFixed(1)}s.`);
+      });
+
+      function spawnCityExterior() {
+        document.querySelector("#city").classList.add("active");
+        log("City exterior mesh spawned with three towers and a plaza canopy.");
+      }
+
+      spawnCityExterior();
+      log("Ready. Use the controls to transition between lobby and hallway.");
+    </script>
+  </body>
+</html>
