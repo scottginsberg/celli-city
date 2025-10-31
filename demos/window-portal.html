@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Window Portal Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: sans-serif;
+        background: #111;
+        color: #f0f0f0;
+      }
+
+      #info {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        padding: 0.75rem 1rem;
+        background: rgba(0, 0, 0, 0.45);
+        border-radius: 0.5rem;
+        max-width: 22rem;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <strong>Window portal demo</strong>
+      <div>Use the mouse to orbit the camera inside the room. The exterior view is rendered from a matching ghost camera through the window.</div>
+    </div>
+    <script type="module">
+      import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+      import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+      import PortalCameraRig from '../src/systems/window/PortalCameraRig.js';
+      import WindowPortalMesh from '../src/systems/window/WindowPortalMesh.js';
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.autoClear = false;
+      document.body.appendChild(renderer.domElement);
+
+      const interiorScene = new THREE.Scene();
+      interiorScene.background = new THREE.Color('#2b2f36');
+
+      const exteriorScene = new THREE.Scene();
+      exteriorScene.background = new THREE.Color('#9cd3ff');
+
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+      camera.position.set(0, 1.6, 3.5);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 1.4, 0);
+      controls.enableDamping = true;
+
+      const ambientInterior = new THREE.AmbientLight('#ffffff', 0.35);
+      interiorScene.add(ambientInterior);
+
+      const sunExterior = new THREE.DirectionalLight('#ffffff', 1.0);
+      sunExterior.position.set(-5, 8, 3);
+      exteriorScene.add(sunExterior);
+
+      const interiorLight = new THREE.SpotLight('#ffddaa', 1.5, 10, Math.PI / 6, 0.5, 1.0);
+      interiorLight.position.set(0, 3.5, 0.5);
+      interiorScene.add(interiorLight);
+
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(6, 6),
+        new THREE.MeshStandardMaterial({ color: '#4a525f', roughness: 0.7, metalness: 0.1 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      interiorScene.add(floor);
+
+      const ceiling = new THREE.Mesh(
+        new THREE.PlaneGeometry(6, 6),
+        new THREE.MeshStandardMaterial({ color: '#353b45', roughness: 0.8, metalness: 0.05 })
+      );
+      ceiling.rotation.x = Math.PI / 2;
+      ceiling.position.y = 3;
+      interiorScene.add(ceiling);
+
+      const wallMaterial = new THREE.MeshStandardMaterial({ color: '#5e6775', roughness: 0.8, metalness: 0 });
+      const wallGeometry = new THREE.PlaneGeometry(6, 3);
+
+      const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+      backWall.position.z = -3;
+      backWall.position.y = 1.5;
+      interiorScene.add(backWall);
+
+      const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
+      frontWall.rotation.y = Math.PI;
+      frontWall.position.z = 3;
+      frontWall.position.y = 1.5;
+      interiorScene.add(frontWall);
+
+      const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
+      leftWall.rotation.y = Math.PI / 2;
+      leftWall.position.x = -3;
+      leftWall.position.y = 1.5;
+      interiorScene.add(leftWall);
+
+      const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
+      rightWall.rotation.y = -Math.PI / 2;
+      rightWall.position.x = 3;
+      rightWall.position.y = 1.5;
+      interiorScene.add(rightWall);
+
+      const table = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.6, 0.6, 0.05, 24),
+        new THREE.MeshStandardMaterial({ color: '#c9a27a', roughness: 0.6 })
+      );
+      table.position.set(-0.8, 0.8, -1);
+      interiorScene.add(table);
+
+      const tableLeg = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.15, 0.8, 16),
+        new THREE.MeshStandardMaterial({ color: '#c9a27a', roughness: 0.6 })
+      );
+      tableLeg.position.copy(table.position);
+      tableLeg.position.y = 0.4;
+      interiorScene.add(tableLeg);
+
+      const chair = new THREE.Mesh(
+        new THREE.BoxGeometry(0.45, 0.45, 0.45),
+        new THREE.MeshStandardMaterial({ color: '#3f4652', roughness: 0.5 })
+      );
+      chair.position.set(1.2, 0.4, 0.8);
+      interiorScene.add(chair);
+
+      const pictureFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 0.6, 0.05),
+        new THREE.MeshStandardMaterial({ color: '#dcd0c0', roughness: 0.8 })
+      );
+      pictureFrame.position.set(-2.3, 1.6, -2.99);
+      interiorScene.add(pictureFrame);
+
+      const shrubMaterial = new THREE.MeshStandardMaterial({ color: '#3b8647', roughness: 0.7 });
+      for (let i = 0; i < 6; i++) {
+        const shrub = new THREE.Mesh(new THREE.SphereGeometry(0.5 + Math.random() * 0.3, 16, 16), shrubMaterial);
+        shrub.position.set(-4 + Math.random() * 8, 0.5, -8 - Math.random() * 6);
+        exteriorScene.add(shrub);
+      }
+
+      const exteriorGround = new THREE.Mesh(
+        new THREE.PlaneGeometry(60, 60),
+        new THREE.MeshStandardMaterial({ color: '#6fa36f', roughness: 1 })
+      );
+      exteriorGround.rotation.x = -Math.PI / 2;
+      exteriorScene.add(exteriorGround);
+
+      const skyline = new THREE.Mesh(
+        new THREE.CylinderGeometry(20, 20, 10, 32, 1, true),
+        new THREE.MeshBasicMaterial({ color: '#8bb0ff', side: THREE.BackSide })
+      );
+      skyline.position.y = 5;
+      exteriorScene.add(skyline);
+
+      const outsideHouse = new THREE.Mesh(
+        new THREE.BoxGeometry(3, 2.5, 3),
+        new THREE.MeshStandardMaterial({ color: '#e0d5c1', roughness: 0.8 })
+      );
+      outsideHouse.position.set(0, 1.25, -6);
+      exteriorScene.add(outsideHouse);
+
+      const roof = new THREE.Mesh(
+        new THREE.ConeGeometry(2.8, 1.2, 4),
+        new THREE.MeshStandardMaterial({ color: '#a65336', roughness: 0.7 })
+      );
+      roof.position.copy(outsideHouse.position);
+      roof.position.y += 1.9;
+      roof.rotation.y = Math.PI / 4;
+      exteriorScene.add(roof);
+
+      const windowInteriorPosition = new THREE.Vector3(0, 1.6, -2.99);
+      const interiorMatrix = new THREE.Matrix4().compose(
+        windowInteriorPosition,
+        new THREE.Quaternion(),
+        new THREE.Vector3(1, 1, 1)
+      );
+
+      const exteriorMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(0, 1.6, 2.5),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI, 0)),
+        new THREE.Vector3(1, 1, 1)
+      );
+
+      const portalMetadata = {
+        id: 'demo-window',
+        size: { width: 1.8, height: 1.1 },
+        interiorTransform: interiorMatrix,
+        exteriorTransform: exteriorMatrix,
+        exteriorScene,
+        renderTargetSize: { width: 1024, height: 768 }
+      };
+
+      const portalRig = new PortalCameraRig({ renderer, primaryCamera: camera });
+      portalRig.addWindow(portalMetadata);
+
+      const portalMesh = new WindowPortalMesh(portalMetadata);
+      interiorScene.add(portalMesh);
+
+      const frameMaterial = new THREE.MeshStandardMaterial({ color: '#1e2127', roughness: 0.4, metalness: 0.2 });
+      const frameDepth = 0.05;
+      const frame = new THREE.Mesh(
+        new THREE.BoxGeometry(portalMetadata.size.width + 0.2, portalMetadata.size.height + 0.2, frameDepth),
+        frameMaterial
+      );
+      frame.position.copy(windowInteriorPosition);
+      frame.position.z -= frameDepth / 2;
+      interiorScene.add(frame);
+
+      function handleResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      window.addEventListener('resize', handleResize);
+
+      const clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const dt = clock.getDelta();
+
+        controls.update();
+        portalRig.update(dt);
+
+        renderer.setRenderTarget(null);
+        renderer.clear();
+        renderer.render(interiorScene, camera);
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
