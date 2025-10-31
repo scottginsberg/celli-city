@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>World Orchestrator Demo</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: #111;
+        color: #f0f0f0;
+      }
+
+      body {
+        margin: 0;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      main {
+        display: flex;
+        flex: 1;
+      }
+
+      #viewport-container {
+        flex: 2;
+        background: radial-gradient(circle at top, #2c3e50, #0b1423);
+        position: relative;
+        display: flex;
+        align-items: stretch;
+        justify-content: stretch;
+      }
+
+      #viewport {
+        position: relative;
+        flex: 1;
+      }
+
+      #viewport canvas {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+      }
+
+      #control-panel {
+        flex: 1;
+        padding: 2rem;
+        background: rgba(5, 10, 20, 0.85);
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      h1 {
+        font-size: 1.75rem;
+        margin: 0;
+      }
+
+      .controls {
+        display: flex;
+        gap: 0.75rem;
+      }
+
+      button {
+        appearance: none;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        background: linear-gradient(135deg, #1abc9c, #16a085);
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(22, 160, 133, 0.4);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(26, 188, 156, 0.4);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        background: #5f6e74;
+        box-shadow: none;
+      }
+
+      #scene-stack {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      #scene-stack li {
+        background: rgba(46, 204, 113, 0.12);
+        border: 1px solid rgba(46, 204, 113, 0.3);
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+      }
+
+      #scene-stack li.active {
+        background: rgba(52, 152, 219, 0.2);
+        border-color: rgba(52, 152, 219, 0.5);
+      }
+
+      #log-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      #log {
+        flex: 1;
+        background: rgba(12, 22, 35, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        overflow-y: auto;
+        font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono",
+          Menlo, Courier, monospace;
+        font-size: 0.85rem;
+      }
+
+      #log div {
+        margin-bottom: 0.35rem;
+      }
+
+      @media (max-width: 900px) {
+        body {
+          flex-direction: column;
+        }
+
+        main {
+          flex-direction: column;
+        }
+
+        #viewport-container {
+          min-height: 50vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section id="viewport-container">
+        <div id="viewport"></div>
+      </section>
+      <section id="control-panel">
+        <h1>World Orchestrator</h1>
+        <p>
+          Push mock scenes onto the stack to verify lifecycle callbacks for
+          <code>enter</code>, <code>exit</code>, and <code>update</code>.
+        </p>
+        <div class="controls">
+          <button id="push-scene" type="button">Push Scene</button>
+          <button id="pop-scene" type="button" disabled>Pop Scene</button>
+        </div>
+        <div>
+          <h2 style="margin: 1rem 0 0.5rem; font-size: 1.1rem;">Scene stack</h2>
+          <ol id="scene-stack"></ol>
+        </div>
+        <div id="log-container">
+          <h2 style="margin: 1rem 0 0.5rem; font-size: 1.1rem;">Lifecycle log</h2>
+          <div id="log"></div>
+        </div>
+      </section>
+    </main>
+    <script type="module">
+      import { bootstrapWorld } from "../src/index.js";
+
+      const viewport = document.getElementById("viewport");
+      const { orchestrator } = bootstrapWorld({ parent: viewport });
+
+      const pushButton = document.getElementById("push-scene");
+      const popButton = document.getElementById("pop-scene");
+      const stackList = document.getElementById("scene-stack");
+      const logContainer = document.getElementById("log");
+
+      let sceneCounter = 0;
+
+      function appendLog(message) {
+        const entry = document.createElement("div");
+        const timestamp = new Date().toLocaleTimeString();
+        entry.textContent = `[${timestamp}] ${message}`;
+        logContainer.prepend(entry);
+        while (logContainer.children.length > 100) {
+          logContainer.lastElementChild.remove();
+        }
+      }
+
+      function refreshStack() {
+        const scenes = orchestrator.getSceneStack();
+        stackList.innerHTML = "";
+        scenes.forEach((scene, index) => {
+          const li = document.createElement("li");
+          const ticks = scene.ticks ?? 0;
+          li.textContent = `${index + 1}. ${scene.name} — ticks: ${ticks}`;
+          if (index === scenes.length - 1) {
+            li.classList.add("active");
+          }
+          stackList.appendChild(li);
+        });
+
+        popButton.disabled = scenes.length === 0;
+      }
+
+      function describeScene(scene) {
+        return scene ? scene.name : "none";
+      }
+
+      function createMockScene() {
+        const id = ++sceneCounter;
+        const name = `Scene ${id}`;
+        return {
+          name,
+          ticks: 0,
+          enter({ previousScene }) {
+            this.ticks = 0;
+            appendLog(`${name} → enter (from ${describeScene(previousScene)})`);
+          },
+          exit({ nextScene }) {
+            appendLog(`${name} → exit (reveals ${describeScene(nextScene)})`);
+          },
+          update({ delta }) {
+            this.ticks += 1;
+            this.elapsed = (this.elapsed ?? 0) + delta;
+          },
+        };
+      }
+
+      pushButton.addEventListener("click", () => {
+        const scene = createMockScene();
+        orchestrator.pushScene(scene);
+        refreshStack();
+      });
+
+      popButton.addEventListener("click", () => {
+        orchestrator.popScene();
+        refreshStack();
+      });
+
+      orchestrator.on("enter", refreshStack);
+      orchestrator.on("exit", refreshStack);
+      orchestrator.on("update", ({ scene }) => {
+        if (scene && scene.ticks % 60 === 0) {
+          refreshStack();
+        }
+      });
+
+      appendLog("Ready. Push scenes to begin.");
+      refreshStack();
+    </script>
+  </body>
+</html>
