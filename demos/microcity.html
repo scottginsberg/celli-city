@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Micro City Engine Demo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        background-color: #050910;
+        color: #eef3ff;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #hud {
+        position: fixed;
+        top: 1.5rem;
+        left: 1.5rem;
+        padding: 1rem 1.25rem;
+        background: rgba(5, 9, 16, 0.72);
+        border: 1px solid rgba(132, 190, 255, 0.3);
+        border-radius: 12px;
+        backdrop-filter: blur(12px);
+        min-width: 260px;
+        box-shadow: 0 18px 60px rgba(4, 18, 36, 0.45);
+      }
+      #hud h1 {
+        font-size: 1.1rem;
+        margin: 0 0 0.6rem 0;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #8fc9ff;
+      }
+      #hud dl {
+        display: grid;
+        grid-template-columns: auto auto;
+        gap: 0.35rem 0.75rem;
+        margin: 0 0 1rem;
+      }
+      #hud dt {
+        opacity: 0.7;
+        font-size: 0.82rem;
+      }
+      #hud dd {
+        margin: 0;
+        font-weight: 600;
+      }
+      #controls {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      button {
+        background: linear-gradient(135deg, #1f6feb, #5f9fff);
+        border: none;
+        border-radius: 999px;
+        color: white;
+        padding: 0.5rem 1.25rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 10px 20px rgba(31, 111, 235, 0.35);
+        transition: transform 0.1s ease, box-shadow 0.2s ease;
+      }
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 24px rgba(31, 111, 235, 0.45);
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      #timeline {
+        margin-top: 0.75rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.04em;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <h1>Micro City Monitor</h1>
+      <dl>
+        <dt>Tier</dt>
+        <dd id="tier">Outpost</dd>
+        <dt>Population</dt>
+        <dd id="population">0</dd>
+        <dt>Sleep Cycles</dt>
+        <dd id="cycles">0</dd>
+        <dt>Time (hrs)</dt>
+        <dd id="hours">0</dd>
+      </dl>
+      <div id="controls">
+        <button data-cycle="1">Advance 1 cycle</button>
+        <button data-cycle="5">Advance 5 cycles</button>
+        <button data-cycle="20">Advance 20 cycles</button>
+      </div>
+      <div id="timeline">Next tier: <span id="next-tier">Unknown</span></div>
+    </div>
+    <script type="module">
+      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.159/build/three.module.js';
+      import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/controls/OrbitControls.js';
+      import MicroCityEngine from '../src/systems/microcity/MicroCityEngine.js';
+      import {
+        generateOutpost,
+        generateSettlement,
+        generateDistrict,
+        generateArcology,
+      } from '../src/systems/microcity/structures/index.js';
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x02121f);
+      scene.fog = new THREE.Fog(0x02121f, 200, 1200);
+
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
+      camera.position.set(220, 180, 220);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.target.set(0, 60, 0);
+
+      const hemiLight = new THREE.HemisphereLight(0xcfe9ff, 0x1a2233, 0.35);
+      scene.add(hemiLight);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      keyLight.position.set(150, 220, 120);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.width = 2048;
+      keyLight.shadow.mapSize.height = 2048;
+      keyLight.shadow.camera.near = 10;
+      keyLight.shadow.camera.far = 700;
+      scene.add(keyLight);
+
+      const ground = new THREE.Mesh(
+        new THREE.CircleGeometry(600, 64),
+        new THREE.MeshStandardMaterial({ color: 0x0a1f33, roughness: 1 }),
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      const structureGenerators = {
+        outpost: (context) => generateOutpost({ ...context, visualContext: { THREE } }),
+        settlement: (context) => generateSettlement({ ...context, visualContext: { THREE } }),
+        district: (context) => generateDistrict({ ...context, visualContext: { THREE } }),
+        arcology: (context) => generateArcology({ ...context, visualContext: { THREE } }),
+      };
+
+      const engine = new MicroCityEngine({
+        initialPopulation: 18,
+        timeScale: 64,
+        sleepCycleHours: 6,
+        structureGenerators,
+        visualContext: { THREE },
+        randomSeed: 9001,
+      });
+
+      const { tier: initialTier } = engine.getCitySnapshot();
+      document.getElementById('tier').textContent = initialTier?.label ?? 'Unknown';
+
+      engine.getStructures().forEach(({ structure }) => {
+        if (structure) {
+          scene.add(structure);
+        }
+      });
+
+      engine.on('structure:spawned', ({ structure }) => {
+        if (structure) {
+          scene.add(structure);
+        }
+      });
+
+      engine.on('tier:advanced', ({ tier }) => {
+        document.getElementById('tier').textContent = tier.label;
+      });
+
+      function updateHud(snapshot) {
+        const { tier, nextTier, population, completedSleepCycles, timeHours } = snapshot;
+        document.getElementById('tier').textContent = tier?.label ?? 'Unknown';
+        document.getElementById('population').textContent = Math.round(population).toLocaleString();
+        document.getElementById('cycles').textContent = completedSleepCycles.toLocaleString();
+        document.getElementById('hours').textContent = timeHours.toFixed(1);
+        document.getElementById('next-tier').textContent = nextTier
+          ? `${nextTier.label} @ ${Math.round(nextTier.populationTarget).toLocaleString()} citizens`
+          : 'Peak civilization achieved';
+      }
+
+      engine.on('tick', updateHud);
+      updateHud(engine.getCitySnapshot());
+
+      document.querySelectorAll('button[data-cycle]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const cycles = Number(button.dataset.cycle) || 1;
+          const snapshot = engine.advanceSleepCycles(cycles);
+          updateHud(snapshot);
+        });
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      let last = performance.now();
+      function renderLoop(now) {
+        const deltaSeconds = (now - last) / 1000;
+        last = now;
+        engine.advance(deltaSeconds);
+        controls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(renderLoop);
+      }
+
+      requestAnimationFrame(renderLoop);
+    </script>
+  </body>
+</html>
