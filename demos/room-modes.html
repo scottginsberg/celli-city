@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Room Modes Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Segoe UI", sans-serif;
+        background: #101418;
+        color: #f7f9fc;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem;
+        display: flex;
+        justify-content: center;
+      }
+
+      main {
+        max-width: 960px;
+        width: 100%;
+        background: rgba(12, 18, 24, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(20px);
+      }
+
+      h1 {
+        margin-top: 0;
+        font-size: clamp(1.8rem, 3vw, 2.6rem);
+        letter-spacing: 0.05em;
+      }
+
+      p.lead {
+        margin-bottom: 2rem;
+        color: rgba(247, 249, 252, 0.72);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+
+      .button-stack {
+        display: flex;
+        align-items: flex-end;
+      }
+
+      .button-stack button {
+        width: 100%;
+      }
+
+      label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(247, 249, 252, 0.6);
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      select,
+      button {
+        appearance: none;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(15, 20, 28, 0.85);
+        color: inherit;
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
+        transition: border-color 0.2s ease, transform 0.2s ease;
+      }
+
+      select:focus,
+      button:focus {
+        border-color: #4fb7ff;
+        outline: none;
+      }
+
+      button {
+        cursor: pointer;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, #2d87ff, #725bff);
+        border-color: transparent;
+      }
+
+      button.primary:hover {
+        transform: translateY(-1px);
+      }
+
+      .status {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .status-card {
+        padding: 1rem 1.25rem;
+        border-radius: 1rem;
+        background: rgba(20, 26, 38, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .status-card h2 {
+        margin: 0;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(247, 249, 252, 0.6);
+      }
+
+      .status-card .value {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-top: 0.4rem;
+      }
+
+      pre {
+        background: rgba(7, 11, 18, 0.9);
+        border-radius: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 1rem 1.5rem;
+        overflow-x: auto;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Room Mode Controller</h1>
+      <p class="lead">
+        Toggle between proxy interiors and true-scale rooms while preserving furnishing
+        randomness. The log confirms that the seed stays identical, even after multiple mode
+        switches.
+      </p>
+      <section class="controls">
+        <label>
+          Building
+          <select id="buildingSelect"></select>
+        </label>
+        <label>
+          Room
+          <select id="roomSelect"></select>
+        </label>
+        <div class="button-stack">
+          <button id="loadRoom" class="primary" type="button">Load room</button>
+        </div>
+        <div class="button-stack">
+          <button id="toggleMode" type="button">Toggle mode</button>
+        </div>
+      </section>
+      <section class="status">
+        <article class="status-card">
+          <h2>Current Mode</h2>
+          <div id="modeValue" class="value">&mdash;</div>
+        </article>
+        <article class="status-card">
+          <h2>Furnishing Seed</h2>
+          <div id="seedValue" class="value">&mdash;</div>
+        </article>
+        <article class="status-card">
+          <h2>Interior / Coordinates</h2>
+          <div id="locationValue" class="value">Select a room</div>
+        </article>
+      </section>
+      <h2>Instantiation log</h2>
+      <pre id="log"></pre>
+    </main>
+    <script type="module">
+      import RoomModeController, { ROOM_MODES } from "../src/systems/rooms/RoomModeController.js";
+
+      const buildingSelect = document.getElementById("buildingSelect");
+      const roomSelect = document.getElementById("roomSelect");
+      const loadButton = document.getElementById("loadRoom");
+      const toggleButton = document.getElementById("toggleMode");
+      const modeValue = document.getElementById("modeValue");
+      const seedValue = document.getElementById("seedValue");
+      const locationValue = document.getElementById("locationValue");
+      const logElement = document.getElementById("log");
+
+      let schema;
+      let controller;
+      let currentRoomId = null;
+      const buildingRooms = new Map();
+
+      async function loadSchema() {
+        const response = await fetch("../data/buildingSlots.json");
+        schema = await response.json();
+      }
+
+      function normaliseRoomsIndex() {
+        const roomsIndex = {};
+        schema.buildings.forEach((building) => {
+          const { id: buildingId, name: buildingName, rooms } = building;
+          const entries = Object.entries(rooms ?? {});
+          buildingRooms.set(buildingId, entries);
+          entries.forEach(([roomId, room]) => {
+            roomsIndex[roomId] = {
+              ...room,
+              buildingId,
+              buildingName
+            };
+          });
+        });
+        return roomsIndex;
+      }
+
+      function populateBuildingSelect() {
+        buildingSelect.innerHTML = "";
+        schema.buildings.forEach((building, index) => {
+          const option = document.createElement("option");
+          option.value = building.id;
+          option.textContent = building.name;
+          if (index === 0) {
+            option.selected = true;
+          }
+          buildingSelect.appendChild(option);
+        });
+        populateRoomSelect(buildingSelect.value);
+      }
+
+      function populateRoomSelect(buildingId) {
+        roomSelect.innerHTML = "";
+        const rooms = buildingRooms.get(buildingId) ?? [];
+        rooms.forEach(([roomId, room], index) => {
+          const option = document.createElement("option");
+          option.value = roomId;
+          option.textContent = room.name;
+          if (index === 0) {
+            option.selected = true;
+          }
+          roomSelect.appendChild(option);
+        });
+      }
+
+      function formatLocation(instance) {
+        if (instance.mode === ROOM_MODES.PROXY) {
+          return `${instance.interiorId} @ (${instance.anchor.x.toFixed(1)}, ${instance.anchor.y.toFixed(1)}, ${instance.anchor.z.toFixed(1)})`;
+        }
+
+        return `${instance.coordinates.x.toFixed(1)}, ${instance.coordinates.y.toFixed(1)}, ${instance.coordinates.z.toFixed(1)}`;
+      }
+
+      function logInstantiation(event) {
+        const { roomId, mode, seed, metadata, instance } = event;
+        if (roomId !== currentRoomId) {
+          return;
+        }
+
+        modeValue.textContent = mode;
+        seedValue.textContent = seed;
+        locationValue.textContent = formatLocation(instance);
+
+        const lines = [
+          `Room: ${metadata.name} (${metadata.buildingName})`,
+          `Mode: ${mode}`,
+          `Seed: ${seed}`,
+          mode === ROOM_MODES.PROXY
+            ? `Proxy interior: ${instance.interiorId} @ ${JSON.stringify(instance.anchor)}`
+            : `True-scale coordinates: ${JSON.stringify(instance.coordinates)}`,
+          ""
+        ];
+        const entry = `${lines.join("\n")}`;
+        logElement.textContent = `${entry}\n${logElement.textContent}`;
+      }
+
+      function updateToggleLabel() {
+        const next = controller.mode === ROOM_MODES.PROXY ? "true-scale" : "proxy";
+        toggleButton.textContent = `Switch to ${next}`;
+      }
+
+      function instantiateSelectedRoom() {
+        const roomId = roomSelect.value;
+        if (!roomId) {
+          return;
+        }
+        currentRoomId = roomId;
+        controller.instantiate(roomId);
+      }
+
+      async function bootstrap() {
+        await loadSchema();
+        const roomsIndex = normaliseRoomsIndex();
+
+        controller = new RoomModeController({
+          roomsIndex,
+          instantiateProxyRoom: (roomId, metadata, seed) => ({
+            roomId,
+            mode: ROOM_MODES.PROXY,
+            seed,
+            interiorId: metadata.proxy.interiorId,
+            anchor: metadata.proxy.anchor,
+            buildingName: metadata.buildingName
+          }),
+          instantiateRealRoom: (roomId, metadata, seed) => ({
+            roomId,
+            mode: ROOM_MODES.REAL,
+            seed,
+            coordinates: metadata.real.coordinates,
+            rotationY: metadata.real.rotationY,
+            buildingName: metadata.buildingName
+          }),
+          defaultMode: ROOM_MODES.PROXY,
+          seedProvider: (roomId, metadata) => metadata.furnishingSeed ?? `${roomId}-seed`
+        });
+
+        controller.on("instantiate", logInstantiation);
+        controller.on("modechange", updateToggleLabel);
+
+        populateBuildingSelect();
+        updateToggleLabel();
+        instantiateSelectedRoom();
+      }
+
+      buildingSelect.addEventListener("change", () => {
+        populateRoomSelect(buildingSelect.value);
+        instantiateSelectedRoom();
+      });
+
+      roomSelect.addEventListener("change", instantiateSelectedRoom);
+      loadButton.addEventListener("click", instantiateSelectedRoom);
+      toggleButton.addEventListener("click", () => {
+        controller.toggleMode();
+      });
+
+      bootstrap();
+    </script>
+  </body>
+</html>
