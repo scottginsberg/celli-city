@@ -1,0 +1,84 @@
+{
+  "version": "2.0.0",
+  "generatedAt": "2024-10-28T00:00:00.000Z",
+  "buildings": [
+    {
+      "id": "atrium-plaza",
+      "name": "Atrium Plaza",
+      "address": "101 Skyline Avenue",
+      "rooms": {
+        "atrium-lobby": {
+          "name": "Atrium Lobby",
+          "floor": 0,
+          "tags": ["public", "entrance"],
+          "proxy": {
+            "interiorId": "atrium-lobby-proxy",
+            "anchor": { "x": 4.2, "y": 0, "z": -1.8 },
+            "rotationY": 90
+          },
+          "real": {
+            "coordinates": { "x": 128.4, "y": 0, "z": -56.1 },
+            "rotationY": 94.5,
+            "bounds": { "width": 18.5, "length": 12.3 }
+          },
+          "furnishingSeed": 872341
+        },
+        "atrium-mezzanine": {
+          "name": "Atrium Mezzanine",
+          "floor": 1,
+          "tags": ["meeting", "open"],
+          "proxy": {
+            "interiorId": "atrium-mezzanine-proxy",
+            "anchor": { "x": -3.5, "y": 5.6, "z": 7.1 },
+            "rotationY": 0
+          },
+          "real": {
+            "coordinates": { "x": 128.4, "y": 5.6, "z": -56.1 },
+            "rotationY": 0,
+            "bounds": { "width": 14.2, "length": 9.4 }
+          },
+          "furnishingSeed": 100245
+        }
+      }
+    },
+    {
+      "id": "harbor-towers",
+      "name": "Harbor Towers",
+      "address": "12 Bayside Way",
+      "rooms": {
+        "harbor-suite-401": {
+          "name": "Tower Suite 401",
+          "floor": 4,
+          "tags": ["residential", "suite"],
+          "proxy": {
+            "interiorId": "harbor-suite-401-proxy",
+            "anchor": { "x": 10.1, "y": 12.4, "z": -3.2 },
+            "rotationY": 180
+          },
+          "real": {
+            "coordinates": { "x": -342.8, "y": 48.2, "z": 210.6 },
+            "rotationY": 182.2,
+            "bounds": { "width": 11.7, "length": 15.9 }
+          },
+          "furnishingSeed": 569942
+        },
+        "harbor-skydeck": {
+          "name": "Sky Deck",
+          "floor": 20,
+          "tags": ["amenity", "outdoor"],
+          "proxy": {
+            "interiorId": "harbor-skydeck-proxy",
+            "anchor": { "x": 0, "y": 75, "z": 0 },
+            "rotationY": 270
+          },
+          "real": {
+            "coordinates": { "x": -350.0, "y": 80.0, "z": 220.0 },
+            "rotationY": 270,
+            "bounds": { "width": 25.0, "length": 20.0 }
+          },
+          "furnishingSeed": 777001
+        }
+      }
+    }
+  ]
+}
